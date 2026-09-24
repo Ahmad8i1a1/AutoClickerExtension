@@ -1,23 +1,55 @@
 {
-    "manifest_version": 3,
-    "name": "Random Clicker",
-    "version": "1.0",
-    "description": "Clicks randomly on a webpage.",
-    "permissions": [ "activeTab", "storage" ],
-    "background": {
-        "service_worker": "background.js"
-    },
-    "action": {
-        "default_popup": "popup.html",
-        "default_icon": {
-            "16": "icon.png",
-            "48": "icon.png",
-            "128": "icon.png"
-        }
-    },
-    "icons": {
-        "16": "icon.png",
-        "48": "icon.png",
-        "128": "icon.png"
+  "manifest_version": 3,
+  "name": "Auto Clicker & Swipe Automation",
+  "version": "2.0.0",
+  "description": "Auto click, multi-point swipe gestures, custom sequence automation up to 10 points, and auto-refresh for web pages.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Auto Clicker & Swipe Automation",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
     }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-automation": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Start or stop automation sequence"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["click-sound.mp3"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
