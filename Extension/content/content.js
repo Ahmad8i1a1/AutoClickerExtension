@@ -17,7 +17,8 @@
     showMarkers: true,
     playSound: true,
     showRipple: true,
-    scrollOnSwipe: true
+    scrollOnSwipe: true,
+    humanizeTiming: true
   };
 
   let quickClickerConfig = {
@@ -103,6 +104,7 @@
         config.showMarkers = data.uiSettings.showMarkers ?? config.showMarkers;
         config.playSound = data.uiSettings.playSound ?? config.playSound;
         config.showRipple = data.uiSettings.showRipple ?? config.showRipple;
+        config.humanizeTiming = data.uiSettings.humanizeTiming ?? config.humanizeTiming;
       }
     } catch (err) {
       console.warn('AutoClicker: Error loading settings:', err);
@@ -119,14 +121,16 @@
           refreshAfterCycle: config.refreshAfterCycle,
           resumeAfterReload: config.resumeAfterReload,
           resumeDelay: config.resumeDelay,
-          scrollOnSwipe: config.scrollOnSwipe
+          scrollOnSwipe: config.scrollOnSwipe,
+          humanizeTiming: config.humanizeTiming
         },
         quickClickerConfig,
         autoRefreshConfig,
         uiSettings: {
           showMarkers: config.showMarkers,
           playSound: config.playSound,
-          showRipple: config.showRipple
+          showRipple: config.showRipple,
+          humanizeTiming: config.humanizeTiming
         }
       });
     } catch (err) {
@@ -213,16 +217,32 @@
     }, 2500);
   }
 
+  // Helper to get true underlying webpage element without extension overlay interference
+  function getUnderlyingElement(x, y) {
+    const prevDisplay = overlayRoot ? overlayRoot.style.display : '';
+    if (overlayRoot) overlayRoot.style.display = 'none';
+
+    let el = document.elementFromPoint(x, y);
+
+    if (overlayRoot) overlayRoot.style.display = prevDisplay;
+    return el || document.body;
+  }
+
   // ==========================================================================
   // DISPATCH REALISTIC DOM EVENTS (CLICK & SWIPE)
   // ==========================================================================
   async function triggerClick(x, y, clickType = 'single', signal) {
     if (signal?.aborted) return;
 
+    // 1. Get true underlying element on the webpage (guaranteed not blocked by pins/overlay)
+    const targetEl = getUnderlyingElement(x, y);
+
+    // 2. Identify the closest interactive target (link, button, input, etc.)
+    const clickable = targetEl.closest('a, button, [role="button"], input, select, textarea, label, [tabindex], [onclick]') || targetEl;
+
+    // 3. Show visual ripple effect & audio
     showClickRipple(x, y);
     playClickAudio();
-
-    const targetEl = document.elementFromPoint(x, y) || document.body;
 
     const eventInit = {
       bubbles: true,
@@ -231,45 +251,84 @@
       view: window,
       clientX: x,
       clientY: y,
-      screenX: window.screenX + x,
-      screenY: window.screenY + y,
+      screenX: (window.screenX || 0) + x,
+      screenY: (window.screenY || 0) + y,
       button: 0,
       buttons: 1
     };
 
     const count = clickType === 'double' ? 2 : 1;
-    const holdDuration = clickType === 'long' ? 500 : 30;
+    const holdDuration = clickType === 'long' ? 500 : 35;
 
     for (let i = 0; i < count; i++) {
       if (signal?.aborted) return;
 
-      // Pointer over and enter
+      // Pointer over & enter
       targetEl.dispatchEvent(new PointerEvent('pointerover', eventInit));
       targetEl.dispatchEvent(new MouseEvent('mouseover', eventInit));
+      targetEl.dispatchEvent(new PointerEvent('pointerenter', eventInit));
+      targetEl.dispatchEvent(new MouseEvent('mouseenter', eventInit));
 
       // Pointer & Mouse down
       targetEl.dispatchEvent(new PointerEvent('pointerdown', eventInit));
       targetEl.dispatchEvent(new MouseEvent('mousedown', eventInit));
 
-      // Focus if input/textarea/editable
-      if (typeof targetEl.focus === 'function') {
-        try { targetEl.focus(); } catch (e) {}
-      }
+      // Set focus to the element
+      try {
+        if (typeof clickable.focus === 'function') {
+          clickable.focus();
+        } else if (typeof targetEl.focus === 'function') {
+          targetEl.focus();
+        }
+      } catch (e) {}
 
       // Wait hold duration
       await new Promise(r => setTimeout(r, holdDuration));
       if (signal?.aborted) return;
 
       // Pointer & Mouse up
-      targetEl.dispatchEvent(new PointerEvent('pointerup', eventInit));
-      targetEl.dispatchEvent(new MouseEvent('mouseup', eventInit));
+      const upInit = { ...eventInit, buttons: 0 };
+      targetEl.dispatchEvent(new PointerEvent('pointerup', upInit));
+      targetEl.dispatchEvent(new MouseEvent('mouseup', upInit));
 
-      // Click event
+      // Click event on target
       targetEl.dispatchEvent(new MouseEvent('click', eventInit));
 
-      // If button or link, trigger native click if needed
-      if ((targetEl.tagName === 'BUTTON' || targetEl.tagName === 'A' || targetEl.type === 'submit' || targetEl.type === 'checkbox' || targetEl.type === 'radio') && typeof targetEl.click === 'function') {
-        try { targetEl.click(); } catch (e) {}
+      // Also dispatch click on clickable if target is child
+      if (clickable !== targetEl) {
+        clickable.dispatchEvent(new MouseEvent('click', eventInit));
+      }
+
+      // Native .click() invocation (required by browsers for native button/link actions)
+      try {
+        if (typeof clickable.click === 'function') {
+          clickable.click();
+        } else if (typeof targetEl.click === 'function') {
+          targetEl.click();
+        }
+      } catch (e) {
+        console.warn('Native click trigger error:', e);
+      }
+
+      // Checkbox and radio toggle support
+      if (clickable.tagName === 'INPUT' && (clickable.type === 'checkbox' || clickable.type === 'radio')) {
+        clickable.dispatchEvent(new Event('input', { bubbles: true }));
+        clickable.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      // Explicit link navigation fallback if browser blocked navigation from synthetic click
+      if (clickable.tagName === 'A' && clickable.href && !clickable.href.startsWith('javascript:')) {
+        const href = clickable.href;
+        if (clickable.target === '_blank') {
+          window.open(href, '_blank');
+        } else if (!href.endsWith('#') && href !== window.location.href + '#') {
+          // If after a small gap navigation hasn't begun, navigate explicitly
+          setTimeout(() => {
+            if (window.location.href !== href && !signal?.aborted) {
+              window.location.assign(href);
+            }
+          }, 80);
+        }
       }
 
       if (i === 1) {
@@ -858,9 +917,23 @@
 
     const signal = executionState.abortController.signal;
 
-    // Update background badge
+    if (overlayRoot) overlayRoot.classList.add('ac-running-mode');
+
+    // Update persistent running state in storage
+    await chrome.storage.local.set({
+      globalExecutionStatus: {
+        isRunning: true,
+        mode: 'sequence',
+        resuming: false,
+        loop: executionState.currentLoop || 1,
+        updatedAt: Date.now()
+      }
+    });
+
+    // Update background badge and notify popup
     try {
       await chrome.runtime.sendMessage({ action: 'UPDATE_BADGE', isRunning: true, text: 'RUN' });
+      await chrome.runtime.sendMessage({ action: 'AUTOMATION_STATUS_CHANGED', isRunning: true, mode: 'sequence' });
     } catch (e) {}
 
     showToast('Automation sequence started (Alt+Shift+S to stop)', '▶️');
@@ -884,8 +957,13 @@
             showFloatingStatus(`${loopStr} • Step ${stepNum} (${step.type})`);
             highlightActivePin(i);
 
-            // Wait for step delay
-            const stepDelay = Math.max(0, step.delay || 500);
+            // Wait for step delay (with humanized natural timing variance if enabled)
+            let stepDelay = Math.max(0, step.delay || 500);
+            if (config.humanizeTiming !== false && stepDelay > 200) {
+              // Add ±15% natural random variance
+              stepDelay = Math.round(stepDelay * (0.85 + Math.random() * 0.30));
+            }
+
             if (stepDelay > 0) {
               await new Promise((resolve) => {
                 const timer = setTimeout(resolve, stepDelay);
@@ -895,11 +973,31 @@
 
             if (signal.aborted) break;
 
-            // Execute Step
+            // Execute Step with micro-jitter for organic human movement
             if (step.type === 'click') {
-              await triggerClick(step.x, step.y, step.clickType, signal);
+              let clickX = step.x;
+              let clickY = step.y;
+              if (config.humanizeTiming !== false) {
+                clickX += Math.round((Math.random() - 0.5) * 6);
+                clickY += Math.round((Math.random() - 0.5) * 6);
+              }
+              await triggerClick(clickX, clickY, step.clickType, signal);
             } else if (step.type === 'swipe') {
-              await triggerSwipe(step.startX, step.startY, step.endX, step.endY, step.duration, step.scrollPage ?? config.scrollOnSwipe, signal);
+              let sX = step.startX;
+              let sY = step.startY;
+              let eX = step.endX;
+              let eY = step.endY;
+              let dur = step.duration || 400;
+
+              if (config.humanizeTiming !== false) {
+                sX += Math.round((Math.random() - 0.5) * 6);
+                sY += Math.round((Math.random() - 0.5) * 6);
+                eX += Math.round((Math.random() - 0.5) * 6);
+                eY += Math.round((Math.random() - 0.5) * 6);
+                dur = Math.round(dur * (0.9 + Math.random() * 0.2));
+              }
+
+              await triggerSwipe(sX, sY, eX, eY, dur, step.scrollPage ?? config.scrollOnSwipe, signal);
             }
           }
 
@@ -999,11 +1097,25 @@
     executionState.mode = 'none';
     executionState.currentStepIndex = -1;
 
+    if (overlayRoot) overlayRoot.classList.remove('ac-running-mode');
+
     highlightActivePin(-1);
     removeFloatingStatus();
 
+    // Persist stopped state
+    chrome.storage.local.set({
+      globalExecutionStatus: {
+        isRunning: false,
+        mode: 'none',
+        resuming: false,
+        updatedAt: Date.now()
+      },
+      sequenceState: null
+    }).catch(() => {});
+
     try {
       chrome.runtime.sendMessage({ action: 'UPDATE_BADGE', isRunning: false });
+      chrome.runtime.sendMessage({ action: 'AUTOMATION_STATUS_CHANGED', isRunning: false, mode: 'none' });
     } catch (e) {}
 
     notifyPopup({ action: 'AUTOMATION_STOPPED' });
@@ -1037,6 +1149,12 @@
         sequenceState: {
           autoResume: true,
           resumeDelay: config.resumeDelay || 2000
+        },
+        globalExecutionStatus: {
+          isRunning: true,
+          mode: 'sequence',
+          resuming: true,
+          updatedAt: Date.now()
         }
       });
     }
@@ -1057,9 +1175,20 @@
         sequenceState: {
           autoResume: true,
           loop: executionState.currentLoop,
-          resumeDelay: config.resumeDelay || 2000
+          resumeDelay: config.resumeDelay || 1500
+        },
+        globalExecutionStatus: {
+          isRunning: true,
+          mode: 'sequence',
+          resuming: true,
+          loop: executionState.currentLoop,
+          updatedAt: Date.now()
         }
       });
+      try {
+        await chrome.runtime.sendMessage({ action: 'UPDATE_BADGE', isRunning: true, text: 'REL' });
+        await chrome.runtime.sendMessage({ action: 'AUTOMATION_STATUS_CHANGED', isRunning: true, mode: 'sequence' });
+      } catch (e) {}
       await chrome.runtime.sendMessage({ action: 'RELOAD_TAB' });
     } catch (e) {
       location.reload();
@@ -1068,14 +1197,26 @@
 
   async function checkAutoResume() {
     try {
-      const data = await chrome.storage.local.get(['sequenceState']);
-      if (data.sequenceState?.autoResume) {
-        // Clear flag
+      const data = await chrome.storage.local.get(['sequenceState', 'globalExecutionStatus']);
+      if (data.sequenceState?.autoResume || data.globalExecutionStatus?.resuming) {
+        // Keep status as running & resuming in storage so popup knows immediately
+        await chrome.storage.local.set({
+          globalExecutionStatus: {
+            isRunning: true,
+            mode: 'sequence',
+            resuming: true,
+            loop: data.sequenceState?.loop || 1,
+            updatedAt: Date.now()
+          }
+        });
         await chrome.storage.local.remove(['sequenceState']);
+
         showToast('Page refreshed. Resuming automation...', '🔄');
-        setTimeout(() => {
-          startSequence();
-        }, data.sequenceState.resumeDelay || 1500);
+        const delay = data.sequenceState?.resumeDelay || config.resumeDelay || 1500;
+
+        setTimeout(async () => {
+          await startSequence();
+        }, delay);
       }
     } catch (e) {}
   }
@@ -1215,6 +1356,16 @@
           case 'RESUME_SEQUENCE': {
             startSequence();
             sendResponse({ success: true });
+            break;
+          }
+
+          case 'GET_VIEWPORT_INFO': {
+            sendResponse({
+              width: window.innerWidth,
+              height: window.innerHeight,
+              scrollX: window.scrollX,
+              scrollY: window.scrollY
+            });
             break;
           }
 

@@ -24,16 +24,32 @@ A powerful, visual, and intuitive Chrome Extension (Manifest V3) designed to aut
 - **Loop Control**: Run once, loop a specified number of times (e.g., 5 loops), or run indefinitely.
 - **Reload After Cycle**: Automatically refresh the webpage after completing a sequence cycle, with automatic resumption once reloaded!
 
-### 4. 🔄 Auto Refresh Current Webpages
+### 4. 👤 Predefined Human Behavior Profile (10 Actions)
+- **One-Click Default Template**: Click `👤 Human Preset` to load 10 pre-configured events modeling realistic human browsing.
+- **Natural Web Interaction Routine**:
+  1. *Step 1:* Initial page scan & focus pause (1.4s)
+  2. *Step 2:* Smooth reading swipe scroll down (550ms)
+  3. *Step 3:* Reading pause & content click (1.8s)
+  4. *Step 4:* Continued downward reading scroll (650ms)
+  5. *Step 5:* Deep reading pause & interaction (2.4s)
+  6. *Step 6:* Lower article scroll (700ms)
+  7. *Step 7:* Section reading focus & click (2.0s)
+  8. *Step 8:* Realistic re-read (scroll back up by 180px, 480ms)
+  9. *Step 9:* Re-reading pause & hover/click (2.2s)
+  10. *Step 10:* Return scroll back to top of page (620ms)
+- **Adaptive Centered Coordinates**: Coordinates automatically adapt to the central readable column of your active window width.
+- **Humanized Natural Timing & Jitter**: Adds ±15% natural timing variance and micro-jitter (±3px) to prevent bot-detection patterns.
+
+### 5. 🔄 Auto Refresh Current Webpages
 - **Periodic Page Reloads**: Set intervals in seconds or minutes (e.g., 10s, 30s, 1m, 5m).
 - **Hard Reload Option**: Bypass browser cache on reload.
 - **Auto-Start Sequence After Reload**: Automatically triggers your configured action sequence after the page finishes refreshing.
 - **Manual Quick Refresh**: Instant one-click page reload button.
 
-### 5. ⚡ Quick Single Clicker
+### 6. ⚡ Quick Single Clicker
 - High-speed continuous auto-clicker for a single target point with customizable frequency (intervals down to 50ms) and repeat limits.
 
-### 6. ⌨️ Global Hotkey & Presets
+### 7. ⌨️ Global Hotkey & Presets
 - **Global Shortcut**: Press `Alt + Shift + S` to start or stop the active automation sequence from anywhere.
 - **Export & Import Presets**: Save your complete action sequence configurations as `.json` files to share or load anytime.
 

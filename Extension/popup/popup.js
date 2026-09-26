@@ -43,10 +43,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingShowRipple = document.getElementById('settingShowRipple');
   const settingShowMarkers = document.getElementById('settingShowMarkers');
   const settingScrollOnSwipe = document.getElementById('settingScrollOnSwipe');
+  const settingHumanizeTiming = document.getElementById('settingHumanizeTiming');
   const exportPresetBtn = document.getElementById('exportPresetBtn');
   const importPresetBtn = document.getElementById('importPresetBtn');
   const importFileInput = document.getElementById('importFileInput');
   const clearAllStepsBtn = document.getElementById('clearAllStepsBtn');
+
+  // Human Profile & Modal Elements
+  const loadHumanProfileBtn = document.getElementById('loadHumanProfileBtn');
+  const emptyLoadHumanBtn = document.getElementById('emptyLoadHumanBtn');
+  const settingsLoadHumanBtn = document.getElementById('settingsLoadHumanBtn');
+  const humanProfileModal = document.getElementById('humanProfileModal');
+  const modalCloseBtn = document.getElementById('modalCloseBtn');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalConfirmBtn = document.getElementById('modalConfirmBtn');
 
   // State
   let activeTabId = null;
@@ -63,7 +73,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     showMarkers: true,
     playSound: true,
     showRipple: true,
-    scrollOnSwipe: true
+    scrollOnSwipe: true,
+    humanizeTiming: true
   };
 
   let quickClickerConfig = {
@@ -152,6 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         config.showMarkers = data.uiSettings.showMarkers ?? config.showMarkers;
         config.playSound = data.uiSettings.playSound ?? config.playSound;
         config.showRipple = data.uiSettings.showRipple ?? config.showRipple;
+        config.humanizeTiming = data.uiSettings.humanizeTiming ?? config.humanizeTiming;
       }
     } catch (e) {
       console.warn('Error loading storage:', e);
@@ -198,6 +210,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingShowRipple.checked = !!config.showRipple;
     settingShowMarkers.checked = !!config.showMarkers;
     settingScrollOnSwipe.checked = !!config.scrollOnSwipe;
+    if (settingHumanizeTiming) {
+      settingHumanizeTiming.checked = config.humanizeTiming !== false;
+    }
 
     toggleMarkersBtn.classList.toggle('active', !!config.showMarkers);
   }
@@ -643,6 +658,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       await saveAndSync();
     });
 
+    // Settings listeners
+    if (settingHumanizeTiming) {
+      settingHumanizeTiming.addEventListener('change', async () => {
+        config.humanizeTiming = settingHumanizeTiming.checked;
+        await saveAndSync();
+      });
+    }
+
+    // Human Profile Modal Triggers
+    const openHumanModal = () => {
+      if (humanProfileModal) {
+        humanProfileModal.style.display = 'flex';
+      }
+    };
+
+    const closeHumanModal = () => {
+      if (humanProfileModal) {
+        humanProfileModal.style.display = 'none';
+      }
+    };
+
+    if (loadHumanProfileBtn) loadHumanProfileBtn.addEventListener('click', openHumanModal);
+    if (emptyLoadHumanBtn) emptyLoadHumanBtn.addEventListener('click', openHumanModal);
+    if (settingsLoadHumanBtn) settingsLoadHumanBtn.addEventListener('click', openHumanModal);
+
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeHumanModal);
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeHumanModal);
+
+    if (modalConfirmBtn) {
+      modalConfirmBtn.addEventListener('click', async () => {
+        await applyHumanProfile();
+        closeHumanModal();
+      });
+    }
+
     // Export Preset
     exportPresetBtn.addEventListener('click', () => {
       const presetData = {
@@ -706,6 +756,155 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ==========================================================================
+  // HUMAN BEHAVIOR PROFILE GENERATOR & APPLIER
+  // ==========================================================================
+  async function applyHumanProfile() {
+    // Attempt to query current viewport from active tab
+    let vpWidth = 1200;
+    let vpHeight = 800;
+
+    const vpInfo = await sendTabMessage({ action: 'GET_VIEWPORT_INFO' });
+    if (vpInfo?.width && vpInfo?.height) {
+      vpWidth = vpInfo.width;
+      vpHeight = vpInfo.height;
+    }
+
+    config.steps = generateHumanBehaviorProfile(vpWidth, vpHeight);
+    config.loopDelay = 3500; // Human pause before re-reading/looping
+    config.humanizeTiming = true;
+    config.scrollOnSwipe = true;
+
+    await saveAndSync();
+    renderUI();
+
+    // Switch to sequence tab if not already on it
+    tabButtons.forEach(b => b.classList.remove('active'));
+    tabPanes.forEach(p => p.classList.remove('active'));
+    const seqTabBtn = document.querySelector('[data-tab="tab-sequence"]');
+    const seqPane = document.getElementById('tab-sequence');
+    if (seqTabBtn) seqTabBtn.classList.add('active');
+    if (seqPane) seqPane.classList.add('active');
+  }
+
+  function generateHumanBehaviorProfile(viewportWidth, viewportHeight) {
+    const centerX = Math.round(viewportWidth * 0.5);
+    const leftX = Math.round(viewportWidth * 0.44);
+    const rightX = Math.round(viewportWidth * 0.56);
+
+    const midScreenY = Math.round(viewportHeight * 0.5);
+    const swipeStartY = Math.round(viewportHeight * 0.68);
+    const swipeEndY = Math.round(viewportHeight * 0.28);
+
+    return [
+      {
+        id: 'step_human_1',
+        type: 'click',
+        enabled: true,
+        x: centerX,
+        y: Math.round(viewportHeight * 0.32),
+        delay: 1400, // Initial headline reading pause
+        clickType: 'single'
+      },
+      {
+        id: 'step_human_2',
+        type: 'swipe',
+        enabled: true,
+        startX: centerX,
+        startY: swipeStartY,
+        endX: centerX,
+        endY: swipeEndY,
+        duration: 550, // Gentle reading scroll down
+        delay: 1200,
+        scrollPage: true
+      },
+      {
+        id: 'step_human_3',
+        type: 'click',
+        enabled: true,
+        x: rightX,
+        y: Math.round(viewportHeight * 0.38),
+        delay: 1800, // Paragraph reading pause & content focus
+        clickType: 'single'
+      },
+      {
+        id: 'step_human_4',
+        type: 'swipe',
+        enabled: true,
+        startX: leftX,
+        startY: Math.round(viewportHeight * 0.70),
+        endX: leftX,
+        endY: Math.round(viewportHeight * 0.24),
+        duration: 650, // Continuing reading scroll
+        delay: 1500,
+        scrollPage: true
+      },
+      {
+        id: 'step_human_5',
+        type: 'click',
+        enabled: true,
+        x: leftX,
+        y: Math.round(viewportHeight * 0.46),
+        delay: 2400, // Deep reading pause & interaction
+        clickType: 'single'
+      },
+      {
+        id: 'step_human_6',
+        type: 'swipe',
+        enabled: true,
+        startX: centerX,
+        startY: Math.round(viewportHeight * 0.72),
+        endX: centerX,
+        endY: Math.round(viewportHeight * 0.20),
+        duration: 700, // Scroll down into lower article
+        delay: 1700,
+        scrollPage: true
+      },
+      {
+        id: 'step_human_7',
+        type: 'click',
+        enabled: true,
+        x: centerX,
+        y: Math.round(viewportHeight * 0.36),
+        delay: 2000, // Reading & focusing on content
+        clickType: 'single'
+      },
+      {
+        id: 'step_human_8',
+        type: 'swipe',
+        enabled: true,
+        startX: centerX,
+        startY: Math.round(viewportHeight * 0.26),
+        endX: centerX,
+        endY: Math.round(viewportHeight * 0.58),
+        duration: 480, // Human re-read scroll back up (natural behavior)
+        delay: 1600,
+        scrollPage: true
+      },
+      {
+        id: 'step_human_9',
+        type: 'click',
+        enabled: true,
+        x: rightX,
+        y: Math.round(viewportHeight * 0.44),
+        delay: 2200, // Re-reading pause & hover/click
+        clickType: 'single'
+      },
+      {
+        id: 'step_human_10',
+        type: 'swipe',
+        enabled: true,
+        startX: centerX,
+        startY: Math.round(viewportHeight * 0.25),
+        endX: centerX,
+        endY: Math.round(viewportHeight * 0.78),
+        duration: 620, // Return scroll to top of page
+        delay: 1300,
+        scrollPage: true
+      }
+    ];
+  }
+
+  // ==========================================================================
   // PICKER INITIATION
   // ==========================================================================
   async function startPickingForStep(mode, stepIndex) {
@@ -731,14 +930,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           refreshAfterCycle: config.refreshAfterCycle,
           resumeAfterReload: config.resumeAfterReload,
           resumeDelay: config.resumeDelay,
-          scrollOnSwipe: config.scrollOnSwipe
+          scrollOnSwipe: config.scrollOnSwipe,
+          humanizeTiming: config.humanizeTiming
         },
         quickClickerConfig,
         autoRefreshConfig,
         uiSettings: {
           showMarkers: config.showMarkers,
           playSound: config.playSound,
-          showRipple: config.showRipple
+          showRipple: config.showRipple,
+          humanizeTiming: config.humanizeTiming
         }
       });
 

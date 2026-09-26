@@ -22,6 +22,18 @@
   font-family: inherit;
 }
 
+/* When automation is running, guarantee all overlay elements are 100% click-through */
+#ac-overlay-root.ac-running-mode,
+#ac-overlay-root.ac-running-mode * {
+  pointer-events: none !important;
+}
+
+/* Allow stop button on floating status pill to remain clickable */
+#ac-overlay-root.ac-running-mode .ac-floating-status,
+#ac-overlay-root.ac-running-mode .ac-status-stop-btn {
+  pointer-events: auto !important;
+}
+
 /* ==========================================================================
    PICKER CROSSHAIR & TOP BANNER
    ========================================================================== */

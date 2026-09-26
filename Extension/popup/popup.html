@@ -88,13 +88,22 @@
             <span>Action Steps</span>
             <span class="count-badge" id="stepCountBadge">0 / 10</span>
           </div>
-          <button class="secondary-btn" id="addStepBtn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Add Action
-          </button>
+          <div class="header-actions">
+            <button class="human-btn" id="loadHumanProfileBtn" title="Load realistic 10-step human browsing sequence">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Human Preset
+            </button>
+            <button class="secondary-btn" id="addStepBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Action
+            </button>
+          </div>
         </div>
 
         <!-- Steps list container -->
@@ -105,8 +114,13 @@
         <div class="empty-state" id="emptyStepsState">
           <div class="empty-icon">🎯</div>
           <h3>No Actions Configured</h3>
-          <p>Add up to 10 points with customizable Clicks and Swipes.</p>
-          <button class="primary-btn-sm" id="emptyAddStepBtn">+ Add First Action</button>
+          <p>Add up to 10 points or load a realistic human browsing simulation.</p>
+          <div class="empty-btn-group">
+            <button class="human-btn-lg" id="emptyLoadHumanBtn">
+              👤 Load 10-Step Human Browsing Profile
+            </button>
+            <button class="primary-btn-sm" id="emptyAddStepBtn">+ Add Empty Action</button>
+          </div>
         </div>
 
         <!-- Sequence Loop & Timing Settings -->
@@ -291,10 +305,26 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div class="form-row switch-row">
+            <div>
+              <div class="label-bold">Humanized Natural Timing</div>
+              <div class="hint-text">Adds ±15% natural delay variance and micro-jitter</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="settingHumanizeTiming" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
         <div class="settings-card mt-3">
-          <div class="card-title">Manage Presets</div>
+          <div class="card-title">Predefined Profiles</div>
+          <p class="card-desc">Load realistic default templates tailored for human-like browsing.</p>
+          <button class="human-btn-lg w-full mb-3" id="settingsLoadHumanBtn">
+            👤 Load Default Human Behavior Profile (10 Steps)
+          </button>
+
+          <div class="card-title mt-3">Manage Presets</div>
           <div class="flex-btn-row">
             <button class="secondary-btn flex-1" id="exportPresetBtn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,6 +357,42 @@
         </div>
       </section>
     </main>
+
+    <!-- Modal for Human Profile Confirmation -->
+    <div class="modal-backdrop" id="humanProfileModal" style="display: none;">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>👤 Load Human Behavior Profile?</span>
+          </div>
+          <button class="modal-close-btn" id="modalCloseBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-summary">
+            This will populate <strong>10 pre-configured actions</strong> simulating how a real person reads and interacts with a website:
+          </p>
+          <ul class="profile-features-list">
+            <li><strong>Step 1:</strong> Initial focus & reading pause (1.2s delay)</li>
+            <li><strong>Step 2:</strong> Smooth reading swipe scroll down (550ms)</li>
+            <li><strong>Step 3:</strong> Content click & reading pause (1.6s)</li>
+            <li><strong>Step 4:</strong> Second reading scroll down (650ms)</li>
+            <li><strong>Step 5:</strong> Reading pause & interaction (2.2s)</li>
+            <li><strong>Step 6:</strong> Further scroll into mid-article (700ms)</li>
+            <li><strong>Step 7:</strong> Focus pause on content (2.0s)</li>
+            <li><strong>Step 8:</strong> Natural re-read scroll back up (480ms)</li>
+            <li><strong>Step 9:</strong> Deep read & click (2.5s)</li>
+            <li><strong>Step 10:</strong> Return scroll to top of page (600ms)</li>
+          </ul>
+          <p class="modal-note">
+            💡 <em>Coordinates automatically adjust to fit the center column of your current webpage.</em>
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary-btn" id="modalCancelBtn">Cancel</button>
+          <button class="primary-btn start-btn" id="modalConfirmBtn">Yes, Load Profile</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Footer -->
     <footer class="app-footer">
